@@ -19,8 +19,8 @@ if __name__ == '__main__':
     # receive end rrc
     shaped = rrc_pulse_shape(psk8, oversamples, 128, alpha=detected_alpha)
 
-    # also needs to detect oversample timing
-    # detect cfo needs some editing including covering all aliases
+    # detect cfo needs some editing to include oversample timing
+    # no need to check aliases
     cfo, snr = estimate_cfo(shaped, 1, True)
     # remove cfo
     offset = 0
