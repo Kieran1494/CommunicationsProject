@@ -10,16 +10,18 @@ def rrc_pulse_shape(data: np.ndarray, oversamples: int, taps: int, alpha:float=0
     _, rrc_taps = commpy.rrcosfilter(taps, alpha, 1, oversamples)
     return circ_convolve(data, rrc_taps)
 
-def estimate_cfo(received: np.ndarray, fs: float, oversamples: int = 1, show: bool = False) -> (float, float, int):
+def estimate_cfo(received: np.ndarray, fs: float, oversamples: int, power:int=4, show: bool = False) -> (float, float, int):
     opt_snr = -np.inf
     opt_freq = 0
     opt_offset = 0
 
+    calc_fs = fs / (oversamples * power)
+
     for offset in range(oversamples):
         spliced_rec = received[offset::oversamples]
-        spectrum = abs(np.fft.fft(np.pad(spliced_rec**4, (0, spliced_rec.size), mode='constant'))).astype(np.float128)**2
+        spectrum = abs(np.fft.fft(np.pad(spliced_rec**power, (0, spliced_rec.size), mode='constant'))).astype(np.float128)**2
         mx = np.argmax(spectrum)
-        freq = np.fft.fftfreq(spectrum.size, 4 / fs)[mx]
+        freq = np.fft.fftfreq(spectrum.size, 1/calc_fs)[mx]
         snr = spectrum[mx] / np.mean(spectrum)
         if snr > opt_snr:
             opt_freq = freq
@@ -28,7 +30,7 @@ def estimate_cfo(received: np.ndarray, fs: float, oversamples: int = 1, show: bo
             display_spectrum = spectrum
     if show:
         from matplotlib import pyplot as plt
-        plt.plot(np.fft.fftfreq(display_spectrum.size, 4 / fs), display_spectrum)
+        plt.plot(np.fft.fftfreq(display_spectrum.size, 1/calc_fs), display_spectrum)
         plt.show()
     return opt_freq, opt_snr, opt_offset
 
