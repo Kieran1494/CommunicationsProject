@@ -31,6 +31,8 @@ def gen_const(keying:str, order: int, length:int) -> np.ndarray:
         targets = np.linspace(0, 1, order)
     elif keying == 'BASK': # bipolar ask
         targets = np.linspace(-1, 1, order)
+    else:
+        raise Exception(f"Invalid Keying: {keying}")
 
     targets = np.array(targets)
     targets /= np.mean(np.abs(targets) ** 2)

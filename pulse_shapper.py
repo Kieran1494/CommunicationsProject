@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import commpy
 
@@ -37,6 +38,13 @@ def estimate_cfo(received: np.ndarray, fs: float, oversamples: int, power:int=4,
 def est_eq(received: np.ndarray, pilot: np.ndarray) -> np.complex64:
     h, _, _, _ = np.linalg.lstsq(pilot[:, None], received[:, None], rcond=None)
     return 1.0 / h[0, 0]
+
+def blind_eq(constellation: np.ndarray) -> np.ndarray:
+    hist, bins = np.histogram(np.angle(constellation), bins=constellation.size//50)
+    mx = np.argmax(hist)
+    max_phase = np.mean(bins[mx:mx+1])
+    return constellation * np.exp(-1j * max_phase)
+
 
 def rrc_2d(data: np.ndarray, oversamples: int, taps: int, alpha:float=0.5):
     _, rrc_taps = commpy.rrcosfilter(taps, alpha, 1, oversamples)
