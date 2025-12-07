@@ -39,16 +39,13 @@ if __name__ == '__main__':
 
     # detect cfo needs some editing to include oversample timing
     # no need to check aliases
+    cfo, snr, offset = estimate_cfo(shaped, 1, oversamples, True)
     # remove cfo
-    for offset in range(oversamples):
-        section = resampled[offset::oversamples]
-        cfo, snr = estimate_cfo(section, detected_baud, power=8, show=True)
-        print(f"Detected CFO: {cfo} Actual: {f_delta}")
-        data = mix(section, -cfo, detected_baud)
+    data = mix(shaped, -cfo, 1)[offset::oversamples]
 
-        # now we have a constellation
-        plt.scatter(data.real, data.imag)
-        plt.show()
+    # now we have a constellation
+    plt.scatter(data.real, data.imag)
+    plt.show()
 
     # match constellation
     results = estimate_mod(data)

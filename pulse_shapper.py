@@ -6,21 +6,31 @@ def circ_convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     b = np.fft.fft(np.pad(b, (0, a.size - b.size), mode='constant', constant_values=0))
     return np.fft.ifft(a * b)
 
-def rrc_pulse_shape(data: np.ndarray, oversamples: float, taps: int, alpha:float=0.5):
+def rrc_pulse_shape(data: np.ndarray, oversamples: int, taps: int, alpha:float=0.5):
     _, rrc_taps = commpy.rrcosfilter(taps, alpha, 1, oversamples)
     return circ_convolve(data, rrc_taps)
 
-def estimate_cfo(received: np.ndarray, fs: float, power:int=4, show: bool = False) -> (float, float):
-    spectrum = abs(np.fft.fft(
-                    np.pad(received**power, (0, received.size), mode='constant'))).astype(np.float128)**2
-    mx = np.argmax(spectrum)
-    freq = np.fft.fftfreq(spectrum.size, power / fs)[mx]
-    snr = spectrum[mx] / np.mean(spectrum)
+def estimate_cfo(received: np.ndarray, fs: float, oversamples: int = 1, show: bool = False) -> (float, float, int):
+    opt_snr = -np.inf
+    opt_freq = 0
+    opt_offset = 0
+
+    for offset in range(oversamples):
+        spliced_rec = received[offset::oversamples]
+        spectrum = abs(np.fft.fft(np.pad(spliced_rec**4, (0, spliced_rec.size), mode='constant'))).astype(np.float128)**2
+        mx = np.argmax(spectrum)
+        freq = np.fft.fftfreq(spectrum.size, 4 / fs)[mx]
+        snr = spectrum[mx] / np.mean(spectrum)
+        if snr > opt_snr:
+            opt_freq = freq
+            opt_snr = snr
+            opt_offset = offset
+            display_spectrum = spectrum
     if show:
         from matplotlib import pyplot as plt
-        plt.plot(np.fft.fftfreq(spectrum.size, power / fs), spectrum)
+        plt.plot(np.fft.fftfreq(display_spectrum.size, 4 / fs), display_spectrum)
         plt.show()
-    return freq, snr
+    return opt_freq, opt_snr, opt_offset
 
 def est_eq(received: np.ndarray, pilot: np.ndarray) -> np.complex64:
     h, _, _, _ = np.linalg.lstsq(pilot[:, None], received[:, None], rcond=None)
