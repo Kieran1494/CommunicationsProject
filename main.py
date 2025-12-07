@@ -21,9 +21,8 @@ if __name__ == '__main__':
 
     # detect cfo needs some editing to include oversample timing
     # no need to check aliases
-    cfo, snr = estimate_cfo(shaped, 1, True)
+    cfo, snr, offset = estimate_cfo(shaped, 1, oversamples, True)
     # remove cfo
-    offset = 0
     data = mix(shaped, -cfo, 1)[offset::oversamples]
 
     # now we have a constellation
