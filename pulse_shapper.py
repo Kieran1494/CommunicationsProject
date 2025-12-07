@@ -6,7 +6,7 @@ def circ_convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     b = np.fft.fft(np.pad(b, (0, a.size - b.size), mode='constant', constant_values=0))
     return np.fft.ifft(a * b)
 
-def rrc_pulse_shape(data: np.ndarray, oversamples: int, taps: int, alpha:float=0.5):
+def rrc_pulse_shape(data: np.ndarray, oversamples: float, taps: int, alpha:float=0.5):
     _, rrc_taps = commpy.rrcosfilter(taps, alpha, 1, oversamples)
     return circ_convolve(data, rrc_taps)
 
