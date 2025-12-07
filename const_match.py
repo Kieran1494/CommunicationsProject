@@ -4,11 +4,11 @@ from matplotlib import pyplot as plt
 
 def determine_category(constellation: np.ndarray):
     mag = abs(constellation)
-    pks = peak_detect(mag / max(mag), 0.66, distance=0.2, visualize=True)
+    pks = peak_detect(mag / max(mag), 0.66, distance=0.2)
     if len(pks) > 1:
         return "ask"
     else:
-        pks = peak_detect(mag / max(mag), 0.05, distance=0.2, visualize=True, bin_dec=500)
+        pks = peak_detect(mag / max(mag), 0.05, distance=0.2, bin_dec=500)
         if len(pks) > 1:
             return "qam"
         else:
