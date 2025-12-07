@@ -1,34 +1,54 @@
+from baud_rate_detector import detect_baud_rate
 from const_match import estimate_mod
-from digital_gen import digital_gen
+from digital_gen import digital_gen, gen_digital
 from monte_carlo import spectra, mix
 from pulse_shapper import rrc_pulse_shape, estimate_cfo
+from scipy import signal
 
 from matplotlib import pyplot as plt
+import numpy as np
 
 if __name__ == '__main__':
-    oversamples = 4
-    fs = 1e6 # this is fake
+    np.random.seed(0)
+    fs = 1e6
+    baud = fs/6
     alpha = 0.5
+    taps = 128 << 1
 
     # data sent
-    psk8, f_delta = digital_gen("psk", 8, 1e6, oversamples, 30, alpha=0.5, center_var=0.01)
+    psk8, f_delta = gen_digital("psk", 8, 1e6, baud, fs, 30, alpha=0.5, center_var=5e3,
+                                taps=taps)
     spectra(psk8, fs)
+
+    detected_baud = detect_baud_rate(psk8, fs)
+    print(f"Detected baud rate: {detected_baud} Actual: {baud}")
+    ratio = detected_baud / fs
+
 
     # detect alpha
     detected_alpha = 0.5
+    print(f"Detected alpha rate: {detected_alpha} Actual: {alpha}")
     # receive end rrc
-    shaped = rrc_pulse_shape(psk8, oversamples, 128, alpha=detected_alpha)
+    shaped = rrc_pulse_shape(psk8, ratio, taps, alpha=detected_alpha)
+    spectra(shaped, fs)
+
+    oversamples = 4
+    new_fs = oversamples / (fs / detected_baud) * fs
+    resampled = signal.resample(shaped, int(psk8.size * detected_baud / fs * oversamples))
+    spectra(resampled, new_fs)
 
     # detect cfo needs some editing to include oversample timing
     # no need to check aliases
-    cfo, snr = estimate_cfo(shaped, 1, True)
     # remove cfo
-    offset = 0
-    data = mix(shaped, -cfo, 1)[offset::oversamples]
+    for offset in range(oversamples):
+        section = resampled[offset::oversamples]
+        cfo, snr = estimate_cfo(section, detected_baud, power=8, show=True)
+        print(f"Detected CFO: {cfo} Actual: {f_delta}")
+        data = mix(section, -cfo, detected_baud)
 
-    # now we have a constellation
-    plt.scatter(data.real, data.imag)
-    plt.show()
+        # now we have a constellation
+        plt.scatter(data.real, data.imag)
+        plt.show()
 
     # match constellation
     results = estimate_mod(data)

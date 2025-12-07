@@ -2,6 +2,7 @@ import numpy as np
 
 from pulse_shapper import rrc_pulse_shape
 from monte_carlo import mix, complex_normal
+from scipy import signal
 
 
 def gen_const(keying:str, order: int, length:int) -> np.ndarray:
@@ -39,6 +40,7 @@ def gen_const(keying:str, order: int, length:int) -> np.ndarray:
 def digital_gen(keying:str, order: int, length:int, repeat:int, snr:float, walk:float=0, center_var:float = 0,
                 dtype=np.complex64, taps=128, alpha=0.5) -> (np.ndarray, float):
     data = gen_const(keying, order, length // repeat + 1).repeat(repeat)
+    data = np.roll(data, np.random.randint(low=0, high=repeat))
     data = rrc_pulse_shape(data, repeat, taps, alpha)
     f_shift = np.random.uniform(-center_var, center_var)
     data = mix(data, f_shift, 1)
@@ -47,6 +49,23 @@ def digital_gen(keying:str, order: int, length:int, repeat:int, snr:float, walk:
     channel += np.cumsum(complex_normal(0, walk, data.size)) # don't use this unless you know what you are doing
     data *= channel
 
-    sigma = 10 ** (-snr / 10)
-    data += complex_normal(0, sigma, data.size)
+    if not np.isnan(snr):
+        sigma = 10 ** (-snr / 10)
+        data += complex_normal(0, sigma, data.size)
+
+    return data.astype(dtype)[:int(length)], f_shift
+
+def gen_digital(keying:str, order: int, length:int, baud:float, fs: float, snr:float, walk:float=0, center_var:float = 0,
+                dtype=np.complex64, taps=128, alpha=0.5) -> (np.ndarray, float):
+    repeat = np.ceil(fs/baud)
+    data, f_shift = digital_gen(keying, order, length, repeat, np.nan, walk, 0, dtype, taps)
+
+    data = signal.resample(data, int(data.size * fs/baud / repeat))
+    f_shift = np.random.uniform(-center_var, center_var)
+    data = mix(data, f_shift, fs)
+
+    if not np.isnan(snr):
+        sigma = 10 ** (-snr / 10)
+        data += complex_normal(0, sigma, data.size)
+
     return data.astype(dtype)[:int(length)], f_shift
