@@ -10,7 +10,7 @@ def rrc_pulse_shape(data: np.ndarray, oversamples: int, taps: int, alpha:float=0
     _, rrc_taps = commpy.rrcosfilter(taps, alpha, 1, oversamples)
     return circ_convolve(data, rrc_taps)
 
-def estimate_cfo(received: np.ndarray, fs: float, oversamples: int = 1, show: bool = False) -> (float, float, int):
+def estimate_cfo(received: np.ndarray, fs: float, oversamples: int = 1, show: bool = False) -> Tuple[float, float, int]:
     opt_snr = -np.inf
     opt_freq = 0
     opt_offset = 0
