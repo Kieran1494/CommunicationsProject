@@ -57,5 +57,5 @@ if __name__ == '__main__':
         # plt.show()
 
         # match constellation
-        results = estimate_mod(data)
+        results = estimate_mod(equalized)
         print(results)
