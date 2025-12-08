@@ -2,13 +2,36 @@ import numpy as np
 from scipy import signal
 from matplotlib import pyplot as plt
 
-def determine_category(constellation: np.ndarray):
+def optimal_rotation(constellation: np.ndarray, increments=50) -> np.ndarray:
+    angles = np.linspace(-np.pi / 4, np.pi / 4, increments)
+    span_opt = float('inf')
+    rotated_opt = constellation
+    for theta in angles:
+        rotated = constellation * np.exp(-1j * theta)
+        span = np.ptp(rotated.real) + np.ptp(rotated.imag)
+        if span < span_opt:
+            span_opt = span
+            rotated_opt = rotated
+    return rotated_opt
+
+def histogram_fraction(data, bin_dec=1000, threshold=0.1):
+    counts, bin_edges = np.histogram(data, bins=data.size // bin_dec, density=True)
+    counts_norm = counts / np.max(counts)
+    fraction = np.sum(counts_norm > threshold) / counts.size
+    return fraction
+
+def determine_category(constellation: np.ndarray, visualize =False):
     mag = abs(constellation)
-    pks = peak_detect(mag / max(mag), 0.66, distance=0.2)
-    if len(pks) > 1:
+    real_span = np.percentile(constellation.real, 95) - np.percentile(constellation.real, 5)
+    imag_span = np.percentile(constellation.imag, 95) - np.percentile(constellation.imag, 5)
+    ratio = real_span / (imag_span + 1e-12)
+    if ratio > 4:
         return "ask"
     else:
-        pks = peak_detect(mag / max(mag), 0.05, distance=0.2, bin_dec=500)
+        histo_span = histogram_fraction(mag, bin_dec=1000, threshold=0.1)
+        if histo_span > 0.5:
+            return "qam"
+        pks = peak_detect(mag / max(mag), 0.05, distance=0.2, bin_dec=500, visualize=visualize)
         if len(pks) > 1:
             return "qam"
         else:
@@ -35,8 +58,42 @@ def peak_detect(data, prominence=0.1, bin_dec=1000, distance=None, visualize=Fal
 
     return peaks / counts_norm.size
 
-def estimate_mod(constellation: np.ndarray)-> dict:
-    return {
-        "psk8": 1,
-        "ask2": 0,
-    }
+def estimate_mod(constellation: np.ndarray)-> str:
+    type = determine_category(constellation)
+    real_values = constellation.real
+    if type == "ask":
+        threshold = np.percentile(real_values, 20)
+        low_vals = real_values[real_values <= threshold]
+        if np.all(low_vals < 0):
+            return "BASK4"
+        else:
+            return "MASK4"
+    if type == "qam":
+        rotated = optimal_rotation(constellation)
+        horizontal_peaks = len(peak_detect(rotated.real, prominence=0.1, bin_dec=500, visualize=False))
+        vertical_peaks = len(peak_detect(rotated.imag, prominence=0.1, bin_dec=500, visualize=False))
+        rough_order = horizontal_peaks * vertical_peaks
+        error = float('inf')
+        for i in [16, 32, 64]:
+            current_error = abs(rough_order - i)
+            if current_error < error:
+                error = current_error
+                order = i
+        return "QAM" + str(order)
+    if type == "psk":
+        angles = np.angle(constellation)
+        angle_peaks = peak_detect(angles)
+        rough_order = len(angle_peaks)
+        error = 20
+        called = False
+        for i in [4, 8]:
+            current_error = abs(rough_order - i)
+            if current_error < error:
+                error = current_error
+                order = i
+                called = True
+        if not called:
+            return estimate_mod(constellation)
+        return "PSK" + str(order)
+    else:
+        return "Inconclusive"
