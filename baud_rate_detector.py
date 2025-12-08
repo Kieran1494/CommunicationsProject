@@ -48,7 +48,7 @@ def detect_baud_rate_autocorr(received, fs, sps_min=2, sps_max=None):
     peaks, _ = find_peaks(search_region)
     mid_peak = int(math.ceil(len(peaks)/2))
     N_s = peaks[mid_peak-1]-peaks[mid_peak-2]
-    print(N_s)
+    # print(N_s)
     baud_est = fs/N_s
 
     '''
