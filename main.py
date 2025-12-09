@@ -70,12 +70,12 @@ if __name__ == '__main__':
         detected_alpha = 0.5
         print(f"Detected alpha rate: {detected_alpha} Actual: {alpha}")
         # receive end rrc
-        shaped = rrc_pulse_shape(raw, ratio, taps, alpha=detected_alpha)
+        shaped = rrc_pulse_shape(received, ratio, taps, alpha=detected_alpha)
         # spectra(shaped, fs)
 
         oversamples = 8
         new_fs = oversamples / (fs / detected_baud) * fs
-        resampled = signal.resample(shaped, int(raw.size * detected_baud / fs * oversamples))
+        resampled = signal.resample(shaped, int(received.size * detected_baud / fs * oversamples))
         # spectra(resampled, new_fs)
 
         # detect cfo needs some editing to include oversample timing
