@@ -32,7 +32,6 @@ def detect_baud_rate_autocorr(received: np.ndarray,
                               min_baud: float = 100,
                               max_baud: float | None = None) -> float:
 
-    # Envelope / magnitude-only
     x = np.abs(received).astype(float)
     x -= np.mean(x)
 
@@ -43,7 +42,6 @@ def detect_baud_rate_autocorr(received: np.ndarray,
     R = np.fft.ifft(X * np.conj(X)).real
     R = R[:N]
 
-    # Convert baud constraints to SPS constraints
     sps_min = int(fs / (max_baud if max_baud else fs))  # if max_baud None => 1
     sps_max = int(fs / min_baud)
 
@@ -52,7 +50,6 @@ def detect_baud_rate_autocorr(received: np.ndarray,
 
     # Find peaks in autocorrelation within [sps_min, sps_max)
     if sps_min >= sps_max:
-        # Fallback: just use global max away from 0 lag
         lag_hat = np.argmax(R[1:]) + 1
         return float(fs / lag_hat)
 
@@ -60,11 +57,9 @@ def detect_baud_rate_autocorr(received: np.ndarray,
     peaks = peaks + sps_min
 
     if len(peaks) < 2:
-        # Not enough peaks; fallback
         lag_hat = int(np.argmax(R[1:]) + 1)
         return float(fs / lag_hat)
 
-    # Spacing between peaks ≈ samples-per-symbol
     deltas = np.diff(peaks)
     sps_hat = int(np.median(deltas))
 
