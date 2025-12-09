@@ -2,17 +2,27 @@ import numpy as np
 from scipy import signal
 from matplotlib import pyplot as plt
 
-def optimal_rotation(constellation: np.ndarray, increments=50) -> np.ndarray:
+def optimal_rotation(constellation: np.ndarray, increments=50, type="nonask") -> np.ndarray:
     angles = np.linspace(-np.pi / 4, np.pi / 4, increments)
-    span_opt = float('inf')
     rotated_opt = constellation
-    for theta in angles:
-        rotated = constellation * np.exp(-1j * theta)
-        span = np.ptp(rotated.real) + np.ptp(rotated.imag)
-        if span < span_opt:
-            span_opt = span
-            rotated_opt = rotated
+    if type == "nonask":
+        span_opt = float('inf')
+        for theta in angles:
+            rotated = constellation * np.exp(-1j * theta)
+            span = np.ptp(rotated.real) + np.ptp(rotated.imag)
+            if span < span_opt:
+                span_opt = span
+                rotated_opt = rotated
+    else:
+        imag_span_opt = float('inf')
+        for theta in angles:
+            rotated = constellation * np.exp(-1j * theta)
+            imag_span = np.percentile(rotated.imag, 95) - np.percentile(rotated.imag, 5)
+            if imag_span < imag_span_opt:
+                imag_span_opt = imag_span
+                rotated_opt = rotated
     return rotated_opt
+
 
 def histogram_fraction(data, bin_dec=1000, threshold=0.1):
     counts, bin_edges = np.histogram(data, bins=data.size // bin_dec, density=True)
@@ -60,14 +70,29 @@ def peak_detect(data, prominence=0.1, bin_dec=1000, distance=None, visualize=Fal
 
 def estimate_mod(constellation: np.ndarray)-> str:
     type = determine_category(constellation)
-    real_values = constellation.real
     if type == "ask":
-        threshold = np.percentile(real_values, 20)
-        low_vals = real_values[real_values <= threshold]
-        if np.all(low_vals < 0):
-            return "BASK4"
+        rotated = optimal_rotation(constellation, type="ask")
+        real_values = constellation.real
+        if np.mean(real_values) > np.std(real_values) / 2:
+            tp = "MASK"
         else:
-            return "MASK4"
+            tp = "BASK"
+        angle_peaks = peak_detect(real_values, distance=0.1)
+        rough_order = len(angle_peaks)
+        error = 20
+        for i in [2, 4, 8]:
+            current_error = abs(rough_order - i)
+            if current_error < error:
+                error = current_error
+                order = i
+        return tp + str(order)
+
+        # threshold = np.percentile(real_values, 20)
+        # low_vals = real_values[real_values <= threshold]
+        # if np.all(low_vals < 0):
+        #     return "BASK4"
+        # else:
+        #     return "MASK4"
     if type == "qam":
         rotated = optimal_rotation(constellation)
         horizontal_peaks = len(peak_detect(rotated.real, prominence=0.1, bin_dec=500, visualize=False))
@@ -81,19 +106,15 @@ def estimate_mod(constellation: np.ndarray)-> str:
                 order = i
         return "QAM" + str(order)
     if type == "psk":
-        angles = np.angle(constellation)
+        angles = np.angle(constellation * (1+1j))
         angle_peaks = peak_detect(angles)
         rough_order = len(angle_peaks)
         error = 20
-        called = False
-        for i in [4, 8]:
+        for i in [2, 4, 8]:
             current_error = abs(rough_order - i)
             if current_error < error:
                 error = current_error
                 order = i
-                called = True
-        if not called:
-            return estimate_mod(constellation)
         return "PSK" + str(order)
     else:
         return "Inconclusive"

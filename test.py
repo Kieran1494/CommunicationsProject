@@ -1,4 +1,4 @@
-from baud_rate_detector import detect_baud_rate_autocorr
+from baud_rate_detector import detect_baud_rate_autocorr, detect_baud_rate_power
 from const_match import estimate_mod, determine_category
 from digital_gen import gen_digital
 from monte_carlo import spectra, mix
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     def determine_modulation(keying, order):
         # if "ask" in keying:
             # continue
-        raw, f_delta = gen_digital(keying, order, 1e6, baud, fs, 10, alpha=0.5, center_var=5e3,
+        raw, f_delta = gen_digital(keying, order, fs/4, baud, fs, 30, alpha=0.5, center_var=5e3,
                                     taps=taps)
         # spectra(raw, fs)
 
@@ -54,43 +54,15 @@ if __name__ == '__main__':
         results = estimate_mod(equalized)
         return results
 
-    error = [0, 0, 0, 0, 0, 0, 0]
-    number_of_trials = 100
+    mod_types = (("mask", 4), ("bask", 4), ("psk", 8), ("psk", 4), ("mask", 2), ("bask", 2), ("qam", 64), ("qam", 32), ("qam", 16))
+    error = {f"{keying}{order}": 0 for keying, order in mod_types}
+    number_of_trials = 30
 
-    for i in range(number_of_trials):
-        result = determine_modulation("mask", 4)
-        if result != "MASK4":
-            error[0] += 1
-    print(f"MASK4 Error: {(error[0]/number_of_trials)*100:.2f}%")
-    for i in range(number_of_trials):
-        result =  determine_modulation("bask", 4)
-        if result != "BASK4":
-            error[1] += 1
-    print(f"BASK4 Error: {(error[1]/number_of_trials)*100:.2f}%")
-    for i in range(number_of_trials):
-        result = determine_modulation("psk", 8)
-        if result != "PSK8":
-            error[2] += 1
-    print(f"PSK8 Error: {(error[2]/number_of_trials)*100:.2f}%")
-    for i in range(number_of_trials):
-        result = determine_modulation("psk", 4)
-        if result != "PSK4":
-            error[3] += 1
-    print(f"PSK4 Error: {(error[3]/number_of_trials)*100:.2f}%")
-    for i in range(number_of_trials):
-        result = determine_modulation("qam", 64)
-        if result != "QAM64":
-            error[4] += 1
-    print(f"QAM64 Error: {(error[4]/number_of_trials)*100:.2f}%")
-    for i in range(number_of_trials):
-        result = determine_modulation("qam", 32)
-        if result != "QAM32":
-            error[5] += 1
-    print(f"QAM32 Error: {(error[5]/number_of_trials)*100:.2f}%")
-    for i in range(number_of_trials):
-        result = determine_modulation("qam", 16)
-        if result != "QAM16":
-            error[6] += 1
-    print(f"QAM16 Error: {(error[6]/number_of_trials)*100:.2f}%")
+    for keying, order in mod_types:
+        for i in range(number_of_trials):
+            result = determine_modulation(keying, order)
+            if result != f"{keying}{order}".upper():
+                error[f"{keying}{order}"] += 1
+        print(f"{keying}{order} Error: {(error[f"{keying}{order}"] / number_of_trials):%}")
 
-    print(f"Total Error: {(sum(error) / (number_of_trials * 7)) * 100:.2f}%")
+    print(f"Total Error: {(sum(error.values()) / (number_of_trials * len(error.values()))):%}")

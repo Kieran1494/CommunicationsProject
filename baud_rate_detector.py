@@ -43,9 +43,35 @@ def detect_baud_rate_autocorr(x, fs, min_baud=100, max_baud=None):
     peaks, _ = find_peaks(R[sps_min:sps_max])
     peaks += sps_min
 
+<<<<<<< HEAD
     deltas = np.diff(peaks)
     sps_hat = int(np.median(deltas))
     baud_hat = fs / sps_hat
+=======
+    lag_min = max(sps_min, 1)
+    lag_max = min(sps_max, N - 1)
+
+    search_region = R[lag_min:lag_max]
+    peaks, _ = find_peaks(search_region)
+    mid_peak = int(math.ceil(len(peaks)/2))
+    N_s = peaks[mid_peak-1]-peaks[mid_peak-2]
+    # print(N_s)
+    baud_est = fs/N_s
+
+    '''
+    plt.figure()
+    plt.plot(search_region[:700])
+    plt.axvline(Fs/Rs, color='r', linestyle='--', label='True sps')
+    plt.title("Autocorrelation R[k] (first 500 lags)")
+    plt.xlabel("Lag (samples)")
+    plt.ylabel("R[k]")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    '''
+    
+    return float(baud_est)
+>>>>>>> 46e599cb46a42c14823756b4560c625c47a3c2a9
 
     return float(baud_hat)
 

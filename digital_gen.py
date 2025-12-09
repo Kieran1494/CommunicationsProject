@@ -60,7 +60,7 @@ def digital_gen(keying:str, order: int, length:int, repeat:int, snr:float, walk:
 def gen_digital(keying:str, order: int, length:int, baud:float, fs: float, snr:float, walk:float=0, center_var:float = 0,
                 dtype=np.complex64, taps=128, alpha=0.5) -> (np.ndarray, float):
     repeat = np.ceil(fs/baud)
-    data, f_shift = digital_gen(keying, order, length, repeat, np.nan, walk, 0, dtype, taps)
+    data, f_shift = digital_gen(keying, order, length, repeat, np.nan, walk, 0, dtype, taps, alpha=alpha)
 
     data = signal.resample(data, int(data.size * fs/baud / repeat))
     f_shift = np.random.uniform(-center_var, center_var)
