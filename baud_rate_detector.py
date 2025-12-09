@@ -6,6 +6,8 @@ from scipy.signal import find_peaks
 import commpy
 from commpy.filters import rcosfilter
 from commpy.filters import rrcosfilter   # <--- use commpy's RRC
+from pulse_shape_detector import detect_pulse_shape
+from pulse_shape_detector import estimate_alpha
 
 def detect_baud_rate_power(received: np.ndarray, fs: float) -> float:
     N = len(received)
@@ -24,54 +26,35 @@ def detect_baud_rate_power(received: np.ndarray, fs: float) -> float:
     baud_est = np.abs(freqs[idx_peak])
     return baud_est
 
-def detect_baud_rate_autocorr(received, fs, sps_min=2, sps_max=None):
-    x = np.abs(received) ** 2
+def detect_baud_rate_autocorr(x, fs, min_baud=100, max_baud=None):
+    x = np.abs(x)
     x -= np.mean(x)
 
     N = len(x)
+    X = np.fft.fft(x, n=2*N)
+    R = np.fft.ifft(X * np.conj(X)).real
+    R = R[:N]
 
-    R_full = np.fft.ifft(
-        np.fft.fft(x, n=2*N) * np.conj(np.fft.fft(x, n=2*N))
-    )
-    R_full = np.real(R_full)
-    R = R_full[:N]
+    sps_min = int(fs / (max_baud if max_baud else fs))
+    sps_max = int(fs / min_baud)
 
-    
+    sps_min = max(2, sps_min)
 
-    if sps_max is None:
-        sps_max = N // 20
+    peaks, _ = find_peaks(R[sps_min:sps_max])
+    peaks += sps_min
 
-    lag_min = max(sps_min, 1)
-    lag_max = min(sps_max, N - 1)
+    deltas = np.diff(peaks)
+    sps_hat = int(np.median(deltas))
+    baud_hat = fs / sps_hat
 
-    search_region = R[lag_min:lag_max]
-    peaks, _ = find_peaks(search_region)
-    mid_peak = int(math.ceil(len(peaks)/2))
-    N_s = peaks[mid_peak-1]-peaks[mid_peak-2]
-    print(N_s)
-    baud_est = fs/N_s
-
-    '''
-    plt.figure()
-    plt.plot(search_region[:700])
-    plt.axvline(Fs/Rs, color='r', linestyle='--', label='True sps')
-    plt.title("Autocorrelation R[k] (first 500 lags)")
-    plt.xlabel("Lag (samples)")
-    plt.ylabel("R[k]")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-    '''
-    
-    return float(baud_est)
-
+    return float(baud_hat)
 
 if __name__ == '__main__':
     # -----------------------------
     # Parameters
     # -----------------------------
     Fs = 1_000_000        # sample rate (Hz)
-    Rs = 10_860           # baud rate (symbols/s)
+    Rs = 10_000           # baud rate (symbols/s)
     sps = int(Fs / Rs)    # samples per symbol (must be integer)
     Nsym = 4000           # number of symbols
 
@@ -90,13 +73,16 @@ if __name__ == '__main__':
 
     # RRC filter using commpy
     N_taps = span * sps + 1
-    t, rrc = rrcosfilter(N_taps, rolloff, 1.0 / Rs, Fs)
+    t, rrc = rcosfilter(N_taps, rolloff, 1.0 / Rs, Fs)
 
     # Pulse shaping (convolution)
     x = np.convolve(upsampled, rrc.astype(np.complex64), mode="same")
-
     # -----------------------------
     # Test baud-rate detector
     # -----------------------------
     baud_est = detect_baud_rate_autocorr(x, Fs)
+    alpha = estimate_alpha(x, Fs, baud_est)
+    pulse_est = detect_pulse_shape(x, Fs, baud_est, alpha)
+    print(pulse_est)
+    print(alpha)
     print("True baud:", Rs, "Estimated baud:", baud_est)
