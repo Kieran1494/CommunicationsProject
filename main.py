@@ -23,44 +23,50 @@ if __name__ == '__main__':
         print(f"\n{keying}{order}")
         # if "ask" in keying:
             # continue
-        raw, f_delta = gen_digital(keying, order, 50e3, baud, fs, np.nan, alpha=0.5, center_var=0,
-                                    taps=taps)
-        rx_sdr = adi.Pluto(f"usb:2.5.5")
-        tx_sdr = adi.Pluto(f"usb:2.6.5")
-        
-        # rx_sdr = adi.ad9361(f"ip:{'192.168.40.8'}")
-        # tx_sdr = adi.Pluto(f"ip:{'192.168.40.9'}")
-
-        # send = np.concatenate([raw, raw, raw])
-        send = raw / max(raw)
-        send *= 2**14
-
-        rx_sdr.rx_enabled_channels = [0]
-        rx_sdr.sample_rate = int(fs)
-        rx_sdr.rx_rf_bandwidth = int(fs * 0.9)
-        rx_sdr.gain_control_mode_chan0 = 'slow_attack'
-        rx_sdr.gain_control_mode_chan1 = 'slow_attack'
-        rx_sdr.rx_buffer_size = send.size
-        rx_sdr.rx_lo = int(1e9)
-        print(rx_sdr.rx_lo)
-
-        tx_sdr.tx_enabled_channels = [0]
-        tx_sdr.sample_rate = int(fs)
-        tx_sdr.tx_lo = int(1e9)
-        print(tx_sdr.tx_lo)
-        tx_sdr.tx_hardwaregain_chan0 = -0
-        tx_sdr.tx_cyclic_buffer = True
-        tx_sdr.tx(send)
-        # spectra(raw, fs)
-        print("sleep for 5")
-        time.sleep(5)
-        # rx_sdr.rx()
-        print("done for 5")
-        received = np.asarray(rx_sdr.rx())
+        raw, f_delta = gen_digital(keying, order, 50e3, baud, fs, 30, alpha=0.5, center_var=1e3,
+                                    taps=taps<<3)
+        # rx_sdr = adi.Pluto(f"usb:2.5.5")
+        # tx_sdr = adi.Pluto(f"usb:2.6.5")
+        #
+        # # rx_sdr = adi.ad9361(f"ip:{'192.168.40.8'}")
+        # # tx_sdr = adi.Pluto(f"ip:{'192.168.40.9'}")
+        #
+        # # send = np.concatenate([raw, raw, raw])
+        # send = raw / max(raw)
+        # send *= 2**14
+        #
+        # rx_sdr.rx_enabled_channels = [0]
+        # rx_sdr.sample_rate = int(fs)
+        # rx_sdr.rx_rf_bandwidth = int(fs * 0.9)
+        # rx_sdr.gain_control_mode_chan0 = 'slow_attack'
+        # rx_sdr.gain_control_mode_chan1 = 'slow_attack'
+        # rx_sdr.rx_buffer_size = send.size
+        # rx_sdr.rx_lo = int(1e9)
+        # print(rx_sdr.rx_lo)
+        #
+        # tx_sdr.tx_enabled_channels = [0]
+        # tx_sdr.sample_rate = int(fs)
+        # tx_sdr.tx_lo = int(1e9)
+        # print(tx_sdr.tx_lo)
+        # tx_sdr.tx_hardwaregain_chan0 = -0
+        # tx_sdr.tx_cyclic_buffer = True
+        # tx_sdr.tx(send)
+        # # spectra(raw, fs)
+        # print("sleep for 5")
+        # time.sleep(5)
+        # # rx_sdr.rx()
+        # print("done for 5")
+        # received = np.asarray(rx_sdr.rx())
+        received = raw
         spectra(received, fs)
 
         #detected_baud = detect_baud_rate_autocorr(received, fs)
         detected_baud = detect_baud_rate_autocorr(received, fs)
+        plt.plot(np.fft.rfftfreq(received.size, 1/fs), 20* np.log10(np.abs(np.fft.rfft(abs(received)**2))))
+        plt.xlabel("Frequency (Hz)")
+        plt.ylabel("Power (dB)")
+        plt.title("Frequency vs FFT of Power")
+        plt.show()
         print(f"Detected baud rate: {detected_baud} Actual: {baud}")
         ratio = detected_baud / fs
 
@@ -89,8 +95,9 @@ if __name__ == '__main__':
         print(determine_category(equalized))
 
         # now we have a constellation
-        plt.scatter(equalized.real, equalized.imag)
-        # plt.scatter(data.real, data.imag)
+        plt.scatter(equalized.real, equalized.imag, label="Equalized")
+        plt.scatter(data.real, data.imag, label="Unequalized")
+        plt.legend()
         plt.show()
 
         # match constellation

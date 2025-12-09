@@ -4,10 +4,12 @@ import commpy
 from commpy.filters import rcosfilter
 from commpy.filters import rrcosfilter
 
+from monte_carlo import spectra
+
 
 def circ_convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     a = np.fft.fft(a)
-    b = np.fft.fft(np.pad(b, (0, a.size - b.size), mode='constant', constant_values=0))
+    b = np.fft.fft(b, n=a.size)
     return np.fft.ifft(a * b)
 
 def rrc_pulse_shape(data: np.ndarray, oversamples: float, taps: int, alpha:float=0.5):
@@ -23,7 +25,7 @@ def estimate_cfo(received: np.ndarray, fs: float, oversamples: int, power:int=4,
 
     for offset in range(oversamples):
         spliced_rec = received[offset::oversamples]
-        spectrum = abs(np.fft.fft(spliced_rec**power, n=spliced_rec.size*2)).astype(np.float64)**2
+        spectrum = abs(np.fft.fft(spliced_rec**power, n=spliced_rec.size*2)).astype(np.float128)**2
         mx = np.argmax(spectrum)
         freq = np.fft.fftfreq(spectrum.size, 1/calc_fs)[mx]
         snr = spectrum[mx] / np.mean(spectrum)
@@ -34,7 +36,9 @@ def estimate_cfo(received: np.ndarray, fs: float, oversamples: int, power:int=4,
             display_spectrum = spectrum
     if show:
         from matplotlib import pyplot as plt
-        plt.plot(np.fft.fftfreq(display_spectrum.size, 1/calc_fs), display_spectrum)
+        plt.plot(np.fft.fftfreq(display_spectrum.size, 1/calc_fs), 10*np.log10(display_spectrum))
+        plt.xlabel("Frequency (Hz)")
+        plt.ylabel("Power")
         plt.show()
     return opt_freq, opt_snr, opt_offset
 
