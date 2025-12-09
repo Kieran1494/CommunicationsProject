@@ -2,17 +2,27 @@ import numpy as np
 from scipy import signal
 from matplotlib import pyplot as plt
 
-def optimal_rotation(constellation: np.ndarray, increments=50) -> np.ndarray:
+def optimal_rotation(constellation: np.ndarray, increments=50, type="nonask") -> np.ndarray:
     angles = np.linspace(-np.pi / 4, np.pi / 4, increments)
-    span_opt = float('inf')
     rotated_opt = constellation
-    for theta in angles:
-        rotated = constellation * np.exp(-1j * theta)
-        span = np.ptp(rotated.real) + np.ptp(rotated.imag)
-        if span < span_opt:
-            span_opt = span
-            rotated_opt = rotated
+    if type == "nonask":
+        span_opt = float('inf')
+        for theta in angles:
+            rotated = constellation * np.exp(-1j * theta)
+            span = np.ptp(rotated.real) + np.ptp(rotated.imag)
+            if span < span_opt:
+                span_opt = span
+                rotated_opt = rotated
+    else:
+        imag_span_opt = float('inf')
+        for theta in angles:
+            rotated = constellation * np.exp(-1j * theta)
+            imag_span = np.percentile(rotated.imag, 95) - np.percentile(rotated.imag, 5)
+            if imag_span < imag_span_opt:
+                imag_span_opt = imag_span
+                rotated_opt = rotated
     return rotated_opt
+
 
 def histogram_fraction(data, bin_dec=1000, threshold=0.1):
     counts, bin_edges = np.histogram(data, bins=data.size // bin_dec, density=True)
@@ -61,6 +71,7 @@ def peak_detect(data, prominence=0.1, bin_dec=1000, distance=None, visualize=Fal
 def estimate_mod(constellation: np.ndarray)-> str:
     type = determine_category(constellation)
     if type == "ask":
+        rotated = optimal_rotation(constellation, type="ask")
         real_values = constellation.real
         if np.mean(real_values) > np.std(real_values) / 2:
             tp = "MASK"
