@@ -110,7 +110,7 @@ def estimate_mod(constellation: np.ndarray)-> str:
         angle_peaks = peak_detect(angles)
         rough_order = len(angle_peaks)
         error = 20
-        for i in [2, 4, 8]:
+        for i in [4, 8]:
             current_error = abs(rough_order - i)
             if current_error < error:
                 error = current_error
