@@ -23,11 +23,14 @@ if __name__ == '__main__':
         # spectra(raw, fs)
 
         detected_baud = detect_baud_rate_autocorr(raw, fs)
+        print(f"Detected baud rate: {detected_baud} Actual: {baud}")
         ratio = detected_baud / fs
 
 
         # detect alpha
+        #detected_alpha = estimate_alpha(received, fs, detected_baud)
         detected_alpha = 0.5
+        print(f"Detected alpha rate: {detected_alpha} Actual: {alpha}")
         # receive end rrc
         shaped = rrc_pulse_shape(raw, ratio, taps, alpha=detected_alpha)
         # spectra(shaped, fs)
@@ -40,10 +43,12 @@ if __name__ == '__main__':
         # detect cfo needs some editing to include oversample timing
         # no need to check aliases
         cfo, snr, offset = estimate_cfo(resampled, new_fs, oversamples, power=8, show=False)
+        print(f"Detected CFO: {cfo} Actual: {f_delta}")
         # remove cfo
         data = mix(resampled, -cfo, new_fs)[offset::oversamples]
 
         equalized = blind_eq(data)
+        print(determine_category(equalized))
 
         # # now we have a constellation
         # plt.scatter(equalized.real, equalized.imag, color="r")
