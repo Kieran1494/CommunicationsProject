@@ -3,6 +3,7 @@ from const_match import estimate_mod, determine_category
 from digital_gen import gen_digital
 from monte_carlo import spectra, mix
 from pulse_shapper import rrc_pulse_shape, estimate_cfo, blind_eq
+from pulse_shape_detector import detect_pulse_shape, estimate_alpha
 from scipy import signal
 
 from matplotlib import pyplot as plt
@@ -17,15 +18,18 @@ if __name__ == '__main__':
     alpha = 0.5
     taps = 128 << 1
 
-    for keying, order in (("psk", 4), ):
+    for keying, order in (("qam", 4), ):
         # data sent
         print(f"\n{keying}{order}")
         # if "ask" in keying:
             # continue
         raw, f_delta = gen_digital(keying, order, 50e3, baud, fs, np.nan, alpha=0.5, center_var=0,
                                     taps=taps)
-        rx_sdr = adi.ad9361(f"ip:{'192.168.40.8'}")
-        tx_sdr = adi.Pluto(f"ip:{'192.168.40.9'}")
+        rx_sdr = adi.Pluto(f"usb:2.5.5")
+        tx_sdr = adi.Pluto(f"usb:2.6.5")
+        
+        # rx_sdr = adi.ad9361(f"ip:{'192.168.40.8'}")
+        # tx_sdr = adi.Pluto(f"ip:{'192.168.40.9'}")
 
         # send = np.concatenate([raw, raw, raw])
         send = raw / max(raw)
@@ -48,19 +52,21 @@ if __name__ == '__main__':
         tx_sdr.tx_cyclic_buffer = True
         tx_sdr.tx(send)
         # spectra(raw, fs)
-
+        print("sleep for 5")
         time.sleep(5)
         # rx_sdr.rx()
-
+        print("done for 5")
         received = np.asarray(rx_sdr.rx())
         spectra(received, fs)
 
+        #detected_baud = detect_baud_rate_autocorr(received, fs)
         detected_baud = detect_baud_rate_autocorr(received, fs)
         print(f"Detected baud rate: {detected_baud} Actual: {baud}")
         ratio = detected_baud / fs
 
 
         # detect alpha
+        #detected_alpha = estimate_alpha(received, fs, detected_baud)
         detected_alpha = 0.5
         print(f"Detected alpha rate: {detected_alpha} Actual: {alpha}")
         # receive end rrc

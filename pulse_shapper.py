@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import commpy
+from commpy.filters import rcosfilter
+from commpy.filters import rrcosfilter
+
 
 def circ_convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     a = np.fft.fft(a)
@@ -8,7 +11,7 @@ def circ_convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return np.fft.ifft(a * b)
 
 def rrc_pulse_shape(data: np.ndarray, oversamples: float, taps: int, alpha:float=0.5):
-    _, rrc_taps = commpy.rrcosfilter(taps, alpha, 1, oversamples)
+    _, rrc_taps = rrcosfilter(taps, alpha, 1, oversamples)
     return circ_convolve(data, rrc_taps)
 
 def estimate_cfo(received: np.ndarray, fs: float, oversamples: int, power:int=4, show: bool = False) -> (float, float, int):
@@ -20,7 +23,7 @@ def estimate_cfo(received: np.ndarray, fs: float, oversamples: int, power:int=4,
 
     for offset in range(oversamples):
         spliced_rec = received[offset::oversamples]
-        spectrum = abs(np.fft.fft(spliced_rec**power, n=spliced_rec.size*2)).astype(np.float128)**2
+        spectrum = abs(np.fft.fft(spliced_rec**power, n=spliced_rec.size*2)).astype(np.float64)**2
         mx = np.argmax(spectrum)
         freq = np.fft.fftfreq(spectrum.size, 1/calc_fs)[mx]
         snr = spectrum[mx] / np.mean(spectrum)
@@ -47,5 +50,5 @@ def blind_eq(constellation: np.ndarray) -> np.ndarray:
 
 
 def rrc_2d(data: np.ndarray, oversamples: int, taps: int, alpha:float=0.5):
-    _, rrc_taps = commpy.rrcosfilter(taps, alpha, 1, oversamples)
+    _, rrc_taps = rrcosfilter(taps, alpha, 1, oversamples)
     return np.vstack([circ_convolve(data[k, :], rrc_taps) for k in range(data.shape[0])])
