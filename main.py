@@ -18,7 +18,7 @@ if __name__ == '__main__':
     alpha = 0.5
     taps = 128 << 1
 
-    for keying, order in (("qam", 4), ):
+    for keying, order in (("qam", 16), ):
         # data sent
         print(f"\n{keying}{order}")
         # if "ask" in keying:
@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
         # detect alpha
         #detected_alpha = estimate_alpha(received, fs, detected_baud)
-        detected_alpha = 0.5
+        detected_alpha = estimate_alpha(received, fs, detected_baud)
         print(f"Detected alpha rate: {detected_alpha} Actual: {alpha}")
         # receive end rrc
         shaped = rrc_pulse_shape(received, ratio, taps, alpha=detected_alpha)

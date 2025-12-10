@@ -25,7 +25,7 @@ def estimate_cfo(received: np.ndarray, fs: float, oversamples: int, power:int=4,
 
     for offset in range(oversamples):
         spliced_rec = received[offset::oversamples]
-        spectrum = abs(np.fft.fft(spliced_rec**power, n=spliced_rec.size*2)).astype(np.float128)**2
+        spectrum = abs(np.fft.fft(spliced_rec**power, n=spliced_rec.size*2))**2
         mx = np.argmax(spectrum)
         freq = np.fft.fftfreq(spectrum.size, 1/calc_fs)[mx]
         snr = spectrum[mx] / np.mean(spectrum)
